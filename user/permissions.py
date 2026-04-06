@@ -1,4 +1,5 @@
 from rest_framework.permissions import BasePermission
+from .roles import get_user_role
 
 class IsAdminUser(BasePermission):
     """
@@ -7,8 +8,7 @@ class IsAdminUser(BasePermission):
     def has_permission(self, request, view):
         return (request.user and 
                 request.user.is_authenticated and 
-                hasattr(request.user, 'profile') and 
-                request.user.profile.role == 'admin')
+                get_user_role(request.user) == 'admin')
 
 class IsStationUser(BasePermission):
     """
@@ -17,8 +17,7 @@ class IsStationUser(BasePermission):
     def has_permission(self, request, view):
         return (request.user and 
                 request.user.is_authenticated and 
-                hasattr(request.user, 'profile') and 
-                request.user.profile.role == 'station')
+                get_user_role(request.user) == 'station')
 
 class IsAdminOrStationUser(BasePermission):
     """
@@ -27,8 +26,7 @@ class IsAdminOrStationUser(BasePermission):
     def has_permission(self, request, view):
         return (request.user and 
                 request.user.is_authenticated and 
-                hasattr(request.user, 'profile') and 
-                request.user.profile.role in ['admin', 'station'])
+                get_user_role(request.user) in ['admin', 'station'])
 
 class IsPublicUser(BasePermission):
     """

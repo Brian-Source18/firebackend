@@ -11,6 +11,7 @@ from django.utils import timezone
 from datetime import timedelta
 import random
 import string
+from .roles import get_user_role, sync_user_role
 
 # Temporary in-memory store for reset codes: {username: {code, expiry}}
 _reset_codes = {}
@@ -53,7 +54,7 @@ def register(request):
             'email': user.email,
             'first_name': user.first_name,
             'last_name': user.last_name,
-            'role': user.profile.role,
+            'role': get_user_role(user),
             'fire_station_id': user.profile.fire_station_id if user.profile.fire_station else None,
         },
         'tokens': {
@@ -75,6 +76,8 @@ def login(request):
     
     if user is None:
         return Response({'error': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+
+    role = sync_user_role(user)
     
     refresh = RefreshToken.for_user(user)
     
@@ -86,7 +89,7 @@ def login(request):
             'email': user.email,
             'first_name': user.first_name,
             'last_name': user.last_name,
-            'role': user.profile.role,
+            'role': role,
             'fire_station_id': user.profile.fire_station_id if user.profile.fire_station else None,
             'fire_station_name': user.profile.fire_station.name if user.profile.fire_station else None,
         },
@@ -99,13 +102,14 @@ def login(request):
 @api_view(['GET'])
 def profile(request):
     user = request.user
+    role = sync_user_role(user)
     return Response({
         'id': user.id,
         'username': user.username,
         'email': user.email,
         'first_name': user.first_name,
         'last_name': user.last_name,
-        'role': user.profile.role,
+        'role': role,
         'fire_station_id': user.profile.fire_station_id if user.profile.fire_station else None,
     })
 

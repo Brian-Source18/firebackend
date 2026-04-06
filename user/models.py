@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from .roles import get_user_role
 
 class UserProfile(models.Model):
     ROLE_CHOICES = [
@@ -29,12 +30,20 @@ class UserProfile(models.Model):
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance, created, **kwargs):
     if created:
-        UserProfile.objects.create(user=instance)
+        UserProfile.objects.create(user=instance, role=get_user_role(instance))
 
 @receiver(post_save, sender=User)
 def save_user_profile(sender, instance, **kwargs):
-    if hasattr(instance, 'profile'):
-        instance.profile.save()
+    profile, _ = UserProfile.objects.get_or_create(
+        user=instance,
+        defaults={'role': get_user_role(instance)}
+    )
+    effective_role = get_user_role(instance)
+    if profile.role != effective_role:
+        profile.role = effective_role
+        profile.save(update_fields=['role'])
+    else:
+        profile.save()
 
 class News(models.Model):
     title = models.CharField(max_length=200)
