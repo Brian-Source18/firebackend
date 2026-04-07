@@ -1,6 +1,23 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User
+from urllib.parse import urljoin
+import os
 from .models import News, FirePrevention, FireStation, HeroicAct, Announcement, EmergencyReport, QuizResult, FireStatistics, FAQ, UserProfile, StationPersonnel, IncidentResponseLog, AuditLog, Feedback
+
+
+def build_media_url(serializer, image_field):
+    if not image_field:
+        return None
+
+    request = serializer.context.get('request')
+    if request:
+        return request.build_absolute_uri(image_field.url)
+
+    backend_url = os.getenv('BACKEND_PUBLIC_URL') or os.getenv('BACKEND_URL')
+    if backend_url:
+        return urljoin(f"{backend_url.rstrip('/')}/", image_field.url.lstrip('/'))
+
+    return image_field.url
 
 class NewsSerializer(serializers.ModelSerializer):
     created_by_name = serializers.CharField(source='created_by.username', read_only=True)
@@ -8,12 +25,7 @@ class NewsSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
 
     def get_image_url(self, obj):
-        if obj.image:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.image.url)
-            return f'http://localhost:8000{obj.image.url}'
-        return None
+        return build_media_url(self, obj.image)
 
     def to_representation(self, instance):
         rep = super().to_representation(instance)
@@ -30,12 +42,7 @@ class FirePreventionSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
 
     def get_image_url(self, obj):
-        if obj.image:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.image.url)
-            return f'http://localhost:8000{obj.image.url}'
-        return None
+        return build_media_url(self, obj.image)
 
     def to_representation(self, instance):
         rep = super().to_representation(instance)
@@ -57,12 +64,7 @@ class HeroicActSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
 
     def get_image_url(self, obj):
-        if obj.image:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.image.url)
-            return f'http://localhost:8000{obj.image.url}'
-        return None
+        return build_media_url(self, obj.image)
 
     def to_representation(self, instance):
         rep = super().to_representation(instance)
@@ -86,12 +88,7 @@ class EmergencyReportSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()
 
     def get_image_url(self, obj):
-        if obj.image:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.image.url)
-            return f'http://localhost:8000{obj.image.url}'
-        return None
+        return build_media_url(self, obj.image)
 
     def to_representation(self, instance):
         rep = super().to_representation(instance)
