@@ -1,4 +1,5 @@
 asgiref==3.11.1
+certifi==2026.4.22
 DateTime==6.0
 dj-database-url==3.1.2
 Django==6.0.2
@@ -11,8 +12,14 @@ packaging==26.0
 pillow==12.1.1
 psycopg2-binary==2.9.11
 PyJWT==2.11.0
+python-dateutil==2.9.0.post0
+python-decouple==3.8
 python-dotenv==1.2.2
 pytz==2025.2
+sib-api-v3-sdk==7.6.0
+six==1.17.0
 sqlparse==0.5.5
 tzdata==2025.3
+urllib3==2.6.3
+whitenoise==6.12.0
 zope.interface==8.2
