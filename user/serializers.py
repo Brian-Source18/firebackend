@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth.models import User
 from urllib.parse import urljoin
 import os
-from .models import News, FirePrevention, FireStation, HeroicAct, Announcement, EmergencyReport, QuizResult, FireStatistics, FAQ, UserProfile, StationPersonnel, IncidentResponseLog, AuditLog, Feedback
+from .models import News, FirePrevention, FireStation, HeroicAct, Announcement, EmergencyReport, QuizResult, FireStatistics, FAQ, UserProfile, StationPersonnel, IncidentResponseLog, AuditLog, Feedback, StationEquipment, FireTruck, UserStory
 
 
 def build_media_url(serializer, image_field):
@@ -77,15 +77,26 @@ class HeroicActSerializer(serializers.ModelSerializer):
 
 class AnnouncementSerializer(serializers.ModelSerializer):
     created_by_name = serializers.CharField(source='created_by.username', read_only=True)
-    
+    image = serializers.ImageField(required=False, allow_null=True)
+    image_url = serializers.SerializerMethodField()
+
+    def get_image_url(self, obj):
+        return build_media_url(self, obj.image)
+
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        rep['image'] = self.get_image_url(instance)
+        return rep
+
     class Meta:
         model = Announcement
-        fields = ['id', 'title', 'message', 'priority', 'created_by_name', 'created_at', 'updated_at']
+        fields = ['id', 'title', 'message', 'priority', 'image', 'image_url', 'created_by_name', 'created_at', 'updated_at']
 
 class EmergencyReportSerializer(serializers.ModelSerializer):
     reported_by_name = serializers.CharField(source='reported_by.username', read_only=True)
     image = serializers.ImageField(required=False, allow_null=True)
     image_url = serializers.SerializerMethodField()
+    contact_number = serializers.CharField(required=False, allow_blank=True, default='')
 
     def get_image_url(self, obj):
         return build_media_url(self, obj.image)
@@ -111,6 +122,30 @@ class QuizResultSerializer(serializers.ModelSerializer):
         model = QuizResult
         fields = ['id', 'user', 'username', 'score', 'total_questions', 'percentage', 'passed', 'completed_at']
         read_only_fields = ['user']
+
+class FireTruckSerializer(serializers.ModelSerializer):
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    water_level_display = serializers.CharField(source='get_water_level_display', read_only=True)
+
+    class Meta:
+        model = FireTruck
+        fields = ['id', 'fire_station', 'truck_number', 'model', 'status', 'status_display', 'water_level', 'water_level_display', 'notes', 'updated_at']
+        read_only_fields = ['fire_station']
+
+
+class StationEquipmentSerializer(serializers.ModelSerializer):
+    name_display = serializers.CharField(source='get_name_display', read_only=True)
+    category_display = serializers.CharField(source='get_category_display', read_only=True)
+    total = serializers.SerializerMethodField()
+
+    def get_total(self, obj):
+        return obj.operational + obj.damaged + obj.under_repair
+
+    class Meta:
+        model = StationEquipment
+        fields = ['id', 'fire_station', 'name', 'name_display', 'category', 'category_display', 'operational', 'damaged', 'under_repair', 'total', 'notes', 'updated_at']
+        read_only_fields = ['fire_station']
+
 
 class FireStatisticsSerializer(serializers.ModelSerializer):
     class Meta:
@@ -193,6 +228,25 @@ class UserSerializer(serializers.ModelSerializer):
             profile.save()
         
         return instance
+
+class UserStorySerializer(serializers.ModelSerializer):
+    submitted_by_name = serializers.CharField(source='submitted_by.username', read_only=True)
+    image = serializers.ImageField(required=True)
+    image_url = serializers.SerializerMethodField()
+
+    def get_image_url(self, obj):
+        return build_media_url(self, obj.image)
+
+    def to_representation(self, instance):
+        rep = super().to_representation(instance)
+        rep['image'] = self.get_image_url(instance)
+        return rep
+
+    class Meta:
+        model = UserStory
+        fields = ['id', 'title', 'story', 'image', 'image_url', 'submitted_by_name', 'status', 'created_at']
+        read_only_fields = ['submitted_by_name', 'created_at']
+
 
 class CreateStationUserSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True, style={'input_type': 'password'})

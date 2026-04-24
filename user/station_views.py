@@ -4,8 +4,8 @@ from rest_framework.response import Response
 from django.db.models import Count, Q
 from django.utils import timezone
 from datetime import timedelta
-from .models import EmergencyReport, FireStation, StationPersonnel, IncidentResponseLog, AuditLog
-from .serializers import EmergencyReportSerializer, FireStationSerializer, StationPersonnelSerializer, IncidentResponseLogSerializer
+from .models import EmergencyReport, FireStation, StationPersonnel, IncidentResponseLog, AuditLog, StationEquipment, FireTruck
+from .serializers import EmergencyReportSerializer, FireStationSerializer, StationPersonnelSerializer, IncidentResponseLogSerializer, StationEquipmentSerializer, FireTruckSerializer
 from .permissions import IsStationUser
 
 def log_action(user, action, target):
@@ -76,16 +76,25 @@ class StationResponseLogViewSet(viewsets.ViewSet):
         log.personnel_deployed.set(personnel_ids)
         return Response(IncidentResponseLogSerializer(log).data)
 
-class StationPersonnelViewSet(viewsets.ReadOnlyModelViewSet):
-    """Station view their own personnel"""
+class StationPersonnelViewSet(viewsets.ModelViewSet):
+    """Station view and update their own personnel status"""
     serializer_class = StationPersonnelSerializer
     permission_classes = [IsStationUser]
+    http_method_names = ['get', 'patch']
 
     def get_queryset(self):
         user = self.request.user
         if hasattr(user, 'profile') and user.profile.fire_station:
             return StationPersonnel.objects.filter(fire_station=user.profile.fire_station)
         return StationPersonnel.objects.none()
+
+    def partial_update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        log_action(request.user, f'Updated Personnel status to {instance.status}', f'{instance.first_name} {instance.last_name}')
+        return Response(serializer.data)
 
 class StationDashboardViewSet(viewsets.ViewSet):
     """Station dashboard statistics"""
@@ -141,6 +150,37 @@ class StationStatisticsViewSet(viewsets.ViewSet):
     def list(self, request):
         """Alias for index"""
         return self.index(request)
+
+class StationFireTruckViewSet(viewsets.ModelViewSet):
+    serializer_class = FireTruckSerializer
+    permission_classes = [IsStationUser]
+
+    def get_queryset(self):
+        user = self.request.user
+        if hasattr(user, 'profile') and user.profile.fire_station:
+            return FireTruck.objects.filter(fire_station=user.profile.fire_station)
+        return FireTruck.objects.none()
+
+    def perform_create(self, serializer):
+        serializer.save(fire_station=self.request.user.profile.fire_station)
+
+
+class StationEquipmentViewSet(viewsets.ModelViewSet):
+    """Station users manage their own station's equipment"""
+    serializer_class = StationEquipmentSerializer
+    permission_classes = [IsStationUser]
+    http_method_names = ['get', 'post', 'put', 'patch', 'delete']
+
+    def get_queryset(self):
+        user = self.request.user
+        if hasattr(user, 'profile') and user.profile.fire_station:
+            return StationEquipment.objects.filter(fire_station=user.profile.fire_station)
+        return StationEquipment.objects.none()
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        serializer.save(fire_station=user.profile.fire_station)
+
 
 class StationProfileViewSet(viewsets.ViewSet):
     """Station profile information"""

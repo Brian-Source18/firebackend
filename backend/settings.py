@@ -19,10 +19,18 @@ import dj_database_url
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:3000').rstrip('/')
 
 SECRET_KEY = os.getenv('SECRET_KEY')
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '*').split(',')
+ALLOWED_HOSTS = [
+    host.strip()
+    for host in os.getenv(
+        'ALLOWED_HOSTS',
+        'localhost,127.0.0.1,0.0.0.0',
+    ).split(',')
+    if host.strip()
+]
 
 # Respect proxy headers in production so absolute URLs use the public https origin.
 USE_X_FORWARDED_HOST = True
@@ -79,7 +87,8 @@ CORS_ALLOW_ALL_ORIGINS = os.getenv('DJANGO_CORS_ALLOW_ALL_ORIGINS', 'True') == '
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    os.getenv('FRONTEND_URL', 'http://localhost:3000'),
+    FRONTEND_URL,
+    "http://192.168.55.106:3000",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -98,6 +107,8 @@ CORS_ALLOW_HEADERS = [
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    FRONTEND_URL,
+    "http://192.168.55.106:3000",
 ]
 
 ROOT_URLCONF = 'backend.urls'

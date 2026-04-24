@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.models import User
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from .models import UserProfile, News, FirePrevention, FireStation, HeroicAct, Announcement, EmergencyReport, QuizResult, FireStatistics, FAQ
+from .models import UserProfile, News, FirePrevention, FireStation, HeroicAct, Announcement, EmergencyReport, QuizResult, FireStatistics, FAQ, UserStory
 
 class UserProfileInline(admin.StackedInline):
     model = UserProfile
@@ -121,3 +121,11 @@ class FAQAdmin(admin.ModelAdmin):
         if not change:
             obj.created_by = request.user
         super().save_model(request, obj, form, change)
+
+@admin.register(UserStory)
+class UserStoryAdmin(admin.ModelAdmin):
+    list_display = ['title', 'submitted_by', 'status', 'created_at']
+    list_filter = ['status', 'created_at']
+    search_fields = ['title', 'story', 'submitted_by__username']
+    readonly_fields = ['submitted_by', 'created_at']
+    list_editable = ['status']

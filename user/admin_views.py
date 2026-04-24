@@ -3,12 +3,12 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.parsers import MultiPartParser, FormParser
 from django.contrib.auth.models import User
-from .models import News, FirePrevention, FireStation, HeroicAct, Announcement, EmergencyReport, QuizResult, FireStatistics, FAQ, StationPersonnel, IncidentResponseLog, AuditLog, Feedback, UserProfile
+from .models import News, FirePrevention, FireStation, HeroicAct, Announcement, EmergencyReport, QuizResult, FireStatistics, FAQ, StationPersonnel, IncidentResponseLog, AuditLog, Feedback, UserProfile, StationEquipment, FireTruck, UserStory
 from .serializers import (
     NewsSerializer, FirePreventionSerializer, FireStationSerializer,
     HeroicActSerializer, AnnouncementSerializer, EmergencyReportSerializer,
     QuizResultSerializer, FireStatisticsSerializer, FAQSerializer,
-    UserSerializer, CreateStationUserSerializer, StationPersonnelSerializer, IncidentResponseLogSerializer, AuditLogSerializer, FeedbackSerializer
+    UserSerializer, CreateStationUserSerializer, StationPersonnelSerializer, IncidentResponseLogSerializer, AuditLogSerializer, FeedbackSerializer, StationEquipmentSerializer, FireTruckSerializer, UserStorySerializer
 )
 from .permissions import IsAdminUser
 
@@ -22,9 +22,6 @@ class AdminNewsViewSet(viewsets.ModelViewSet):
     parser_classes = (MultiPartParser, FormParser)
 
     def create(self, request, *args, **kwargs):
-        print(f"\n=== ADMIN NEWS CREATE ===")
-        print(f"FILES: {request.FILES}")
-        print(f"DATA: {request.data}")
         return super().create(request, *args, **kwargs)
 
     def perform_create(self, serializer):
@@ -96,6 +93,7 @@ class AdminAnnouncementViewSet(viewsets.ModelViewSet):
     queryset = Announcement.objects.all()
     serializer_class = AnnouncementSerializer
     permission_classes = [IsAdminUser]
+    parser_classes = (MultiPartParser, FormParser)
 
     def perform_create(self, serializer):
         obj = serializer.save(created_by=self.request.user)
@@ -153,7 +151,11 @@ class AdminEmergencyReportViewSet(viewsets.ModelViewSet):
     queryset = EmergencyReport.objects.all()
     serializer_class = EmergencyReportSerializer
     permission_classes = [IsAdminUser]
-    http_method_names = ['get', 'put', 'patch', 'delete']
+    http_method_names = ['get', 'post', 'put', 'patch', 'delete']
+
+    def perform_create(self, serializer):
+        obj = serializer.save(reported_by=self.request.user, status='responding')
+        log_action(self.request.user, 'Added Emergency Report', f'Report #{obj.id} — {obj.title}')
 
     @action(detail=False, methods=['get'])
     def unread_count(self, request):
@@ -251,6 +253,38 @@ class AdminStationAccountViewSet(viewsets.ModelViewSet):
         serializer = FireStationSerializer(available_stations, many=True)
         return Response(serializer.data)
 
+class AdminFireTruckViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = FireTruckSerializer
+    permission_classes = [IsAdminUser]
+
+    def get_queryset(self):
+        qs = FireTruck.objects.all()
+        station_id = self.request.query_params.get('station')
+        if station_id:
+            qs = qs.filter(fire_station_id=station_id)
+        return qs
+
+
+class AdminEquipmentViewSet(viewsets.ModelViewSet):
+    serializer_class = StationEquipmentSerializer
+    permission_classes = [IsAdminUser]
+
+    def get_queryset(self):
+        qs = StationEquipment.objects.all()
+        station_id = self.request.query_params.get('station')
+        if station_id:
+            qs = qs.filter(fire_station_id=station_id)
+        return qs
+
+    def perform_create(self, serializer):
+        obj = serializer.save()
+        log_action(self.request.user, 'Added Equipment', f'{obj.get_name_display()} — {obj.fire_station.name}')
+
+    def perform_destroy(self, instance):
+        log_action(self.request.user, 'Deleted Equipment', f'{instance.get_name_display()} — {instance.fire_station.name}')
+        instance.delete()
+
+
 class AdminPersonnelViewSet(viewsets.ModelViewSet):
     """Admin full CRUD for Station Personnel"""
     queryset = StationPersonnel.objects.all()
@@ -276,6 +310,21 @@ class AdminResponseLogViewSet(viewsets.ReadOnlyModelViewSet):
             qs = qs.filter(report_id=report_id)
         return qs
 
+class AdminUserStoryViewSet(viewsets.ModelViewSet):
+    queryset = UserStory.objects.all()
+    serializer_class = UserStorySerializer
+    permission_classes = [IsAdminUser]
+    http_method_names = ['get', 'patch', 'delete']
+
+    def perform_update(self, serializer):
+        obj = serializer.save()
+        log_action(self.request.user, f'Story {obj.status}', f'{obj.title} by {obj.submitted_by.username}')
+
+    def perform_destroy(self, instance):
+        log_action(self.request.user, 'Deleted Story', instance.title)
+        instance.delete()
+
+
 class AdminAuditLogViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = AuditLog.objects.all()
     serializer_class = AuditLogSerializer
@@ -296,6 +345,7 @@ class AdminDashboardViewSet(viewsets.ViewSet):
         pending_reports = EmergencyReport.objects.filter(status='pending').count()
         total_reports = EmergencyReport.objects.count()
         total_quiz_results = QuizResult.objects.count()
+        total_personnel = StationPersonnel.objects.filter(status='active').count()
         
         recent_reports = EmergencyReport.objects.order_by('-created_at')[:5]
         recent_quiz_results = QuizResult.objects.order_by('-completed_at')[:5]
@@ -309,6 +359,7 @@ class AdminDashboardViewSet(viewsets.ViewSet):
             'pending_reports': pending_reports,
             'total_reports': total_reports,
             'total_quiz_results': total_quiz_results,
+            'total_personnel': total_personnel,
             'recent_reports': EmergencyReportSerializer(recent_reports, many=True).data,
             'recent_quiz_results': QuizResultSerializer(recent_quiz_results, many=True).data,
         })

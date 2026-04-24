@@ -124,6 +124,7 @@ class Announcement(models.Model):
     title = models.CharField(max_length=200)
     message = models.TextField()
     priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='info')
+    image = models.ImageField(upload_to='announcement_images/', blank=True, null=True)
     created_by = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -172,7 +173,7 @@ class EmergencyReport(models.Model):
     alarm_level = models.CharField(max_length=20, choices=ALARM_LEVEL_CHOICES, null=True, blank=True)
     resolution_notes = models.TextField(blank=True, default='')
     image = models.ImageField(upload_to='emergency_reports/', blank=True, null=True)
-    contact_number = models.CharField(max_length=50)
+    contact_number = models.CharField(max_length=50, blank=True, default='')
     reported_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reports')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -226,8 +227,9 @@ class StationPersonnel(models.Model):
         ('firefighter', 'Firefighter'),
     ]
     STATUS_CHOICES = [
-        ('active', 'Active'),
+        ('on_duty', 'On Duty'),
         ('on_leave', 'On Leave'),
+        ('absent', 'Absent'),
         ('inactive', 'Inactive'),
     ]
 
@@ -271,6 +273,114 @@ class AuditLog(models.Model):
 
     def __str__(self):
         return f"{self.user} — {self.action} — {self.target}"
+
+class FireTruck(models.Model):
+    STATUS_CHOICES = [
+        ('operational', 'Operational'),
+        ('damaged', 'Damaged'),
+        ('under_repair', 'Under Repair'),
+    ]
+    WATER_CHOICES = [
+        ('full', 'Full'),
+        ('half', 'Half'),
+        ('empty', 'Empty'),
+    ]
+
+    fire_station = models.ForeignKey(FireStation, on_delete=models.CASCADE, related_name='fire_trucks')
+    truck_number = models.CharField(max_length=50)
+    model = models.CharField(max_length=100, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='operational')
+    water_level = models.CharField(max_length=10, choices=WATER_CHOICES, default='full')
+    notes = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['truck_number']
+
+    def __str__(self):
+        return f"{self.truck_number} — {self.fire_station.name}"
+
+
+class StationEquipment(models.Model):
+    CATEGORY_CHOICES = [
+        ('suppression', 'Fire Suppression Equipment'),
+        ('rescue', 'Rescue Equipment'),
+        ('ppe', 'Personal Protective Equipment'),
+        ('detection', 'Search & Detection Tools'),
+        ('medical', 'Medical Equipment'),
+        ('ventilation', 'Ventilation & Support Tools'),
+    ]
+    STATUS_CHOICES = [
+        ('operational', 'Operational'),
+        ('damaged', 'Damaged'),
+        ('under_repair', 'Under Repair'),
+    ]
+    EQUIPMENT_CHOICES = [
+        ('fire_hose', 'Fire Hose'),
+        ('nozzle', 'Nozzle'),
+        ('fire_hydrant', 'Fire Hydrant'),
+        ('fire_extinguisher', 'Fire Extinguisher'),
+        ('fire_pump', 'Fire Pump'),
+        ('foam_system', 'Foam System'),
+        ('ladder', 'Ladder (Extension & Aerial)'),
+        ('hydraulic_cutter', 'Hydraulic Cutter/Spreader (Jaws of Life)'),
+        ('axe_halligan', 'Axe & Halligan Tool'),
+        ('rope_harness', 'Rope & Harness'),
+        ('crowbar', 'Crowbar'),
+        ('turnout_gear', 'Fire-Resistant Suit (Turnout Gear)'),
+        ('helmet', 'Helmet'),
+        ('gloves_boots', 'Gloves & Boots'),
+        ('scba', 'SCBA (Self-Contained Breathing Apparatus)'),
+        ('flashlight', 'Flashlight'),
+        ('thermal_camera', 'Thermal Imaging Camera'),
+        ('gas_detector', 'Gas Detector'),
+        ('radio', 'Radio'),
+        ('first_aid_kit', 'First Aid Kit'),
+        ('aed', 'AED (Automated External Defibrillator)'),
+        ('stretcher', 'Stretcher'),
+        ('oxygen_tank', 'Oxygen Tank'),
+        ('ventilation_fan', 'Ventilation Fan'),
+        ('generator', 'Generator'),
+        ('chainsaw', 'Chainsaw'),
+    ]
+
+    fire_station = models.ForeignKey(FireStation, on_delete=models.CASCADE, related_name='equipment')
+    name = models.CharField(max_length=100, choices=EQUIPMENT_CHOICES)
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
+    operational = models.PositiveIntegerField(default=0)
+    damaged = models.PositiveIntegerField(default=0)
+    under_repair = models.PositiveIntegerField(default=0)
+    notes = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['category', 'name']
+        unique_together = ['fire_station', 'name']
+
+    def __str__(self):
+        return f"{self.get_name_display()} — {self.fire_station.name}"
+
+
+class UserStory(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+    title = models.CharField(max_length=200)
+    story = models.TextField()
+    image = models.ImageField(upload_to='user_stories/')
+    submitted_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='stories')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.title} — {self.submitted_by.username}"
+
 
 class Feedback(models.Model):
     RATING_CHOICES = [(i, i) for i in range(1, 6)]
