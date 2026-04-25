@@ -89,7 +89,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     FRONTEND_URL,
-    "http://192.168.55.106:3000",
+    "http://192.168.55.115:3000",
 ]
 
 CORS_ALLOW_CREDENTIALS = True
@@ -109,7 +109,7 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
     FRONTEND_URL,
-    "http://192.168.55.106:3000",
+    "http://192.168.55.115:3000",
 ]
 
 ROOT_URLCONF = 'backend.urls'
